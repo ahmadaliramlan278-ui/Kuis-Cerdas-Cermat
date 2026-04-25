@@ -1,0 +1,1586 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🏆 Cerdas Cermat Informatika — Multiplayer</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<style>
+  :root {
+    --bg: #050a1a;
+    --panel: #0d1b35;
+    --panel2: #0a1428;
+    --accent: #00d4ff;
+    --accent2: #ff6b35;
+    --accent3: #39ff14;
+    --gold: #ffd700;
+    --text: #e0eaff;
+    --muted: #5a7099;
+    --border: #1a3060;
+    --correct: #39ff14;
+    --wrong: #ff3366;
+    --glow: 0 0 20px rgba(0,212,255,0.4);
+    --glow2: 0 0 30px rgba(0,212,255,0.6);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Rajdhani', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none; z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
+    pointer-events: none; z-index: 1;
+  }
+
+  .wrap { position: relative; z-index: 2; max-width: 900px; margin: 0 auto; padding: 16px; }
+
+  /* HEADER */
+  .header { text-align: center; padding: 20px 0 10px; }
+  .header-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--accent2), #ff3366);
+    color: white; font-family: 'Orbitron', monospace;
+    font-size: 10px; letter-spacing: 3px; padding: 4px 16px;
+    border-radius: 2px; margin-bottom: 10px; text-transform: uppercase;
+  }
+  h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(22px, 5vw, 48px); font-weight: 900; line-height: 1;
+    background: linear-gradient(135deg, var(--accent), #7b5ea7, var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; filter: drop-shadow(0 0 20px rgba(0,212,255,0.3));
+    margin-bottom: 4px;
+  }
+  .subtitle { font-size: 13px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
+
+  /* SCREENS */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* BUTTONS */
+  .btn {
+    font-family: 'Orbitron', monospace; font-size: 11px; font-weight: 700;
+    letter-spacing: 2px; padding: 12px 24px; border: none; border-radius: 6px;
+    cursor: pointer; transition: all 0.2s; text-transform: uppercase; min-width: 120px;
+  }
+  .btn-primary { background: linear-gradient(135deg, var(--accent), #0099cc); color: #000; box-shadow: 0 4px 20px rgba(0,212,255,0.3); }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: var(--glow2); }
+  .btn-secondary { background: transparent; border: 1.5px solid var(--border); color: var(--muted); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-danger { background: linear-gradient(135deg, var(--accent2), #cc3300); color: white; }
+  .btn-success { background: linear-gradient(135deg, var(--correct), #00aa00); color: #000; }
+
+  /* PANELS */
+  .panel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px; margin: 12px 0;
+    position: relative; overflow: hidden;
+  }
+
+  /* ===================== ROLE SELECT SCREEN ===================== */
+  .role-screen { text-align: center; padding: 30px 0; }
+  .role-options { display: flex; gap: 16px; justify-content: center; margin: 30px 0; flex-wrap: wrap; }
+
+  .role-card {
+    background: var(--panel); border: 2px solid var(--border);
+    border-radius: 16px; padding: 30px 24px; cursor: pointer;
+    transition: all 0.3s; min-width: 180px; flex: 1; max-width: 220px;
+  }
+  .role-card:hover { border-color: var(--accent); transform: translateY(-4px); box-shadow: var(--glow2); }
+  .role-card.host-card:hover { border-color: var(--gold); box-shadow: 0 0 30px rgba(255,215,0,0.4); }
+  .role-icon { font-size: 56px; margin-bottom: 12px; display: block; }
+  .role-title { font-family: 'Orbitron', monospace; font-size: 14px; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
+  .role-card.host-card .role-title { color: var(--gold); }
+  .role-desc { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+  /* ===================== HOST LOBBY ===================== */
+  .room-code-display {
+    background: var(--panel2); border: 2px solid var(--accent);
+    border-radius: 12px; padding: 20px; text-align: center; margin: 16px 0;
+  }
+  .room-code-label { font-size: 11px; letter-spacing: 3px; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+  .room-code { font-family: 'Orbitron', monospace; font-size: 52px; font-weight: 900; color: var(--accent); letter-spacing: 8px; line-height: 1; }
+
+  .qr-wrapper {
+    display: flex; flex-direction: column; align-items: center; margin: 16px 0;
+    background: white; border-radius: 12px; padding: 16px; display: inline-block;
+  }
+  #qrCode canvas, #qrCode img { border-radius: 8px; }
+
+  .players-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin: 12px 0; }
+  .player-chip {
+    background: var(--panel2); border: 1.5px solid var(--border);
+    border-radius: 8px; padding: 10px 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .player-chip.ready { border-color: var(--correct); }
+  .player-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+  .player-chip.ready .player-dot { background: var(--correct); box-shadow: 0 0 8px var(--correct); }
+  .player-name-text { font-weight: 600; font-size: 14px; flex: 1; }
+  .player-team-badge {
+    font-family: 'Orbitron', monospace; font-size: 10px; font-weight: 700;
+    padding: 2px 8px; border-radius: 4px;
+  }
+
+  .waiting-hint { font-size: 13px; color: var(--muted); text-align: center; margin: 8px 0; }
+
+  .host-controls { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0; }
+
+  /* ===================== PLAYER JOIN ===================== */
+  .join-screen { text-align: center; padding: 20px 0; }
+  .join-input-group { margin: 20px 0; }
+  .join-input-group label { display: block; font-family: 'Orbitron', monospace; font-size: 10px; letter-spacing: 2px; color: var(--muted); margin-bottom: 8px; }
+  .join-input {
+    width: 100%; background: var(--panel2); border: 1.5px solid var(--border);
+    color: var(--text); font-family: 'Rajdhani', sans-serif; font-size: 18px;
+    font-weight: 700; padding: 14px 16px; border-radius: 8px; outline: none;
+    transition: border-color 0.2s; text-align: center; letter-spacing: 3px;
+  }
+  .join-input:focus { border-color: var(--accent); }
+  .room-code-input { font-family: 'Orbitron', monospace; font-size: 28px; letter-spacing: 6px; text-transform: uppercase; }
+
+  .team-select-btns { display: flex; gap: 10px; justify-content: center; margin: 16px 0; flex-wrap: wrap; }
+  .team-select-btn {
+    padding: 14px 20px; border-radius: 8px; border: 2px solid;
+    font-family: 'Orbitron', monospace; font-size: 12px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s; background: transparent; letter-spacing: 1px;
+  }
+  .tsb-a { border-color: var(--accent); color: var(--accent); }
+  .tsb-a.selected, .tsb-a:hover { background: var(--accent); color: #000; }
+  .tsb-b { border-color: var(--accent2); color: var(--accent2); }
+  .tsb-b.selected, .tsb-b:hover { background: var(--accent2); color: white; }
+  .tsb-c { border-color: var(--accent3); color: var(--accent3); }
+  .tsb-c.selected, .tsb-c:hover { background: var(--accent3); color: #000; }
+
+  /* ===================== PLAYER WAITING ===================== */
+  .player-waiting-screen { text-align: center; padding: 40px 20px; }
+  .pulse-icon { font-size: 80px; animation: pulse 2s infinite; display: block; margin-bottom: 20px; }
+  @keyframes pulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.7; } }
+
+  /* ===================== GAME SCREEN (HOST) ===================== */
+  .scorebar { display: flex; gap: 10px; margin: 12px 0; flex-wrap: wrap; }
+  .score-card {
+    flex: 1; min-width: 100px; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; position: relative; overflow: hidden;
+  }
+  .score-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--accent); }
+  .score-card.team-a::before { background: var(--accent); }
+  .score-card.team-b::before { background: var(--accent2); }
+  .score-card.team-c::before { background: var(--accent3); }
+  .score-card.timer-card::before { background: var(--gold); }
+  .score-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .score-value { font-family: 'Orbitron', monospace; font-size: 28px; font-weight: 700; line-height: 1; }
+  .score-card.team-a .score-value { color: var(--accent); }
+  .score-card.team-b .score-value { color: var(--accent2); }
+  .score-card.team-c .score-value { color: var(--accent3); }
+  .timer-value { font-family: 'Orbitron', monospace; font-size: 28px; font-weight: 700; color: var(--gold); line-height: 1; }
+  .timer-value.urgent { color: var(--wrong); animation: blink 0.5s infinite; }
+  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .question-panel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px; margin: 12px 0;
+    position: relative; overflow: hidden; animation: slideIn 0.4s ease;
+  }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  .q-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+  .q-number { font-family: 'Orbitron', monospace; font-size: 12px; color: var(--accent); letter-spacing: 2px; }
+  .q-category { background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.2); color: var(--accent); font-size: 10px; letter-spacing: 2px; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; }
+  .q-points { font-family: 'Orbitron', monospace; font-size: 12px; color: var(--gold); }
+  .q-text { font-size: clamp(16px, 2.5vw, 22px); font-weight: 600; line-height: 1.5; color: var(--text); margin-bottom: 20px; }
+
+  .answers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .ans-btn {
+    background: var(--panel2); border: 1.5px solid var(--border); color: var(--text);
+    font-family: 'Rajdhani', sans-serif; font-size: 15px; font-weight: 600;
+    padding: 14px 16px; border-radius: 8px; cursor: pointer; transition: all 0.2s;
+    text-align: left; display: flex; align-items: center; gap: 12px;
+  }
+  .ans-btn:hover:not(:disabled) { border-color: var(--accent); background: rgba(0,212,255,0.08); transform: translateY(-2px); box-shadow: var(--glow); }
+  .ans-btn .letter { font-family: 'Orbitron', monospace; font-size: 12px; font-weight: 700; width: 28px; height: 28px; border-radius: 4px; background: var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--accent); }
+  .ans-btn.correct { border-color: var(--correct); background: rgba(57,255,20,0.12); box-shadow: 0 0 20px rgba(57,255,20,0.3); }
+  .ans-btn.correct .letter { background: var(--correct); color: #000; }
+  .ans-btn.wrong { border-color: var(--wrong); background: rgba(255,51,102,0.12); }
+  .ans-btn.wrong .letter { background: var(--wrong); color: white; }
+  .ans-btn:disabled { cursor: not-allowed; opacity: 0.7; transform: none; }
+
+  .reveal-panel { background: rgba(57,255,20,0.05); border: 1px solid rgba(57,255,20,0.2); border-radius: 8px; padding: 12px 16px; margin-top: 10px; display: none; font-size: 14px; color: var(--correct); }
+  .reveal-panel.show { display: block; }
+
+  /* BUZZED INDICATOR (HOST) */
+  .buzzed-indicator {
+    background: var(--panel); border: 2px solid var(--accent);
+    border-radius: 10px; padding: 14px 20px; margin: 10px 0;
+    display: none; text-align: center;
+    animation: buzzGlow 0.5s ease;
+  }
+  .buzzed-indicator.show { display: block; }
+  @keyframes buzzGlow { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .buzzed-team-name { font-family: 'Orbitron', monospace; font-size: 20px; font-weight: 900; }
+  .buzzed-player-name { font-size: 14px; color: var(--muted); margin-top: 4px; }
+
+  /* LIVE PLAYERS LIST (HOST) */
+  .live-players { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+  .live-player-chip {
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 20px;
+    padding: 4px 12px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px;
+  }
+  .live-player-chip.buzzed { border-color: var(--gold); color: var(--gold); animation: buzzGlow 0.3s ease; }
+  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--correct); }
+
+  /* CONTROLS */
+  .controls { display: flex; gap: 10px; margin: 12px 0; flex-wrap: wrap; }
+  .controls .btn { flex: 1; min-width: 100px; }
+
+  .progress-bar { height: 3px; background: var(--border); border-radius: 2px; margin: 8px 0; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); transition: width 0.5s ease; }
+
+  /* ===================== PLAYER BUZZER SCREEN ===================== */
+  .buzzer-screen { text-align: center; padding: 20px 0; }
+  .my-team-badge {
+    font-family: 'Orbitron', monospace; font-size: 14px; font-weight: 700;
+    padding: 8px 20px; border-radius: 8px; border: 2px solid; display: inline-block; margin-bottom: 20px;
+  }
+  .my-team-badge.team-a { border-color: var(--accent); color: var(--accent); }
+  .my-team-badge.team-b { border-color: var(--accent2); color: var(--accent2); }
+  .my-team-badge.team-c { border-color: var(--accent3); color: var(--accent3); }
+
+  .q-text-player { font-size: clamp(15px, 3.5vw, 20px); font-weight: 600; line-height: 1.5; color: var(--text); margin: 16px 0; text-align: left; }
+
+  .big-buzzer {
+    width: 200px; height: 200px; border-radius: 50%;
+    border: 4px solid; cursor: pointer; transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 8px; margin: 20px auto;
+    font-family: 'Orbitron', monospace; font-size: 16px; font-weight: 900;
+    letter-spacing: 2px; position: relative; overflow: hidden;
+    -webkit-tap-highlight-color: transparent; user-select: none;
+  }
+  .big-buzzer.team-a { border-color: var(--accent); color: var(--accent); background: rgba(0,212,255,0.05); }
+  .big-buzzer.team-a:active, .big-buzzer.team-a.pressed { background: var(--accent); color: #000; box-shadow: 0 0 60px rgba(0,212,255,0.8); transform: scale(0.95); }
+  .big-buzzer.team-b { border-color: var(--accent2); color: var(--accent2); background: rgba(255,107,53,0.05); }
+  .big-buzzer.team-b:active, .big-buzzer.team-b.pressed { background: var(--accent2); color: white; box-shadow: 0 0 60px rgba(255,107,53,0.8); transform: scale(0.95); }
+  .big-buzzer.team-c { border-color: var(--accent3); color: var(--accent3); background: rgba(57,255,20,0.05); }
+  .big-buzzer.team-c:active, .big-buzzer.team-c.pressed { background: var(--accent3); color: #000; box-shadow: 0 0 60px rgba(57,255,20,0.8); transform: scale(0.95); }
+  .big-buzzer.disabled { opacity: 0.3; cursor: not-allowed; }
+  .big-buzzer.already-buzzed { opacity: 0.5; cursor: not-allowed; }
+  .buzzer-icon { font-size: 48px; }
+
+  .player-answers { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .player-ans-btn {
+    background: var(--panel2); border: 1.5px solid var(--border); color: var(--text);
+    font-family: 'Rajdhani', sans-serif; font-size: 16px; font-weight: 600;
+    padding: 14px 16px; border-radius: 8px; cursor: pointer; transition: all 0.2s;
+    text-align: left; display: flex; align-items: center; gap: 12px; width: 100%;
+  }
+  .player-ans-btn:active { transform: scale(0.98); }
+  .player-ans-btn.correct { border-color: var(--correct); background: rgba(57,255,20,0.12); }
+  .player-ans-btn.wrong { border-color: var(--wrong); background: rgba(255,51,102,0.12); }
+  .player-ans-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .player-ans-btn .letter { font-family: 'Orbitron', monospace; font-size: 12px; width: 28px; height: 28px; border-radius: 4px; background: var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--accent); }
+
+  .status-bar {
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 14px; margin: 8px 0; font-size: 13px; color: var(--muted);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .status-dot.green { background: var(--correct); box-shadow: 0 0 6px var(--correct); }
+  .status-dot.yellow { background: var(--gold); box-shadow: 0 0 6px var(--gold); animation: blink 1s infinite; }
+  .status-dot.red { background: var(--wrong); }
+
+  .my-score-display {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 14px; margin: 8px 0; display: flex; justify-content: space-between; align-items: center;
+  }
+  .my-score-label { font-size: 12px; color: var(--muted); }
+  .my-score-num { font-family: 'Orbitron', monospace; font-size: 24px; font-weight: 700; }
+
+  /* NOTIFICATION */
+  .notif {
+    position: fixed; top: 16px; right: 16px;
+    background: var(--panel); border: 1px solid var(--accent); border-radius: 10px;
+    padding: 14px 20px; font-family: 'Orbitron', monospace; font-size: 12px; color: var(--accent);
+    box-shadow: var(--glow2); z-index: 100;
+    transform: translateX(200%); transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    max-width: 260px;
+  }
+  .notif.show { transform: translateX(0); }
+  .notif.correct-notif { border-color: var(--correct); color: var(--correct); }
+  .notif.wrong-notif { border-color: var(--wrong); color: var(--wrong); }
+
+  /* RESULT */
+  .result-screen { text-align: center; padding: 30px 20px; }
+  .trophy { font-size: 80px; margin-bottom: 12px; display: block; }
+  .winner-name { font-family: 'Orbitron', monospace; font-size: clamp(20px, 4vw, 36px); font-weight: 900; color: var(--gold); text-shadow: 0 0 30px rgba(255,215,0,0.5); margin-bottom: 8px; }
+  .final-scores { display: flex; gap: 12px; justify-content: center; margin: 20px 0; flex-wrap: wrap; }
+  .final-score-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px 24px; min-width: 120px; }
+  .final-score-card.winner { border-color: var(--gold); box-shadow: 0 0 30px rgba(255,215,0,0.3); }
+  .fs-team { font-family: 'Orbitron', monospace; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .fs-score { font-family: 'Orbitron', monospace; font-size: 36px; font-weight: 900; }
+
+  /* TEAM SETUP */
+  .team-setup { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 16px 0; }
+  .team-input-group { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .team-input-group label { display: block; font-family: 'Orbitron', monospace; font-size: 9px; letter-spacing: 2px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; }
+  .team-input-group input { width: 100%; background: var(--panel2); border: 1.5px solid var(--border); color: var(--text); font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 600; padding: 7px 10px; border-radius: 6px; outline: none; transition: border-color 0.2s; }
+  .team-input-group input:focus { border-color: var(--accent); }
+
+  /* TOAST for buzz */
+  .buzz-toast {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(0);
+    background: var(--panel); border: 3px solid var(--gold); border-radius: 20px;
+    padding: 30px 40px; text-align: center; z-index: 200;
+    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    pointer-events: none; min-width: 280px;
+  }
+  .buzz-toast.show { transform: translate(-50%,-50%) scale(1); }
+  .buzz-toast-team { font-family: 'Orbitron', monospace; font-size: 24px; font-weight: 900; color: var(--gold); }
+  .buzz-toast-player { font-size: 16px; color: var(--muted); margin-top: 6px; }
+  .buzz-toast-icon { font-size: 48px; margin-bottom: 12px; }
+
+  @media (max-width: 600px) {
+    .answers { grid-template-columns: 1fr; }
+    .team-setup { grid-template-columns: 1fr; }
+    .big-buzzer { width: 180px; height: 180px; }
+    .role-card { min-width: 140px; }
+  }
+
+  /* SCOREBOARD mini on player */
+  .mini-scoreboard { display: flex; gap: 8px; margin: 8px 0; }
+  .mini-score { flex: 1; background: var(--panel2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; text-align: center; }
+  .mini-score-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .mini-score-val { font-family: 'Orbitron', monospace; font-size: 18px; font-weight: 700; }
+  .mini-score.my-team { border-color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="notif" id="notif"></div>
+  <div class="buzz-toast" id="buzzToast">
+    <div class="buzz-toast-icon">🔔</div>
+    <div class="buzz-toast-team" id="buzzToastTeam"></div>
+    <div class="buzz-toast-player" id="buzzToastPlayer"></div>
+  </div>
+
+  <!-- ============ ROLE SELECT ============ -->
+  <div class="screen active" id="roleScreen">
+    <div class="header">
+      <div class="header-badge">SMK / SMA · Informatika</div>
+      <h1>CERDAS CERMAT</h1>
+      <p class="subtitle">Multiplayer · Buzzer HP Siswa</p>
+    </div>
+    <div class="role-screen">
+      <p style="color:var(--muted);font-size:15px;margin-bottom:10px;">Pilih peran Anda</p>
+      <div class="role-options">
+        <div class="role-card host-card" onclick="selectRole('host')">
+          <span class="role-icon">👨‍🏫</span>
+          <div class="role-title" style="color:var(--gold)">GURU / HOST</div>
+          <div class="role-desc">Buat sesi kuis, tampilkan soal, kelola permainan</div>
+        </div>
+        <div class="role-card" onclick="selectRole('player')">
+          <span class="role-icon">📱</span>
+          <div class="role-title">SISWA / PLAYER</div>
+          <div class="role-desc">Gabung ke sesi, tekan buzzer dari HP sendiri</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ HOST SETUP ============ -->
+  <div class="screen" id="hostSetupScreen">
+    <div class="header">
+      <div class="header-badge">Mode Host · Guru</div>
+      <h1>SETUP KUIS</h1>
+    </div>
+    <div class="panel">
+      <div class="room-code-label">Kode Ruangan</div>
+      <div class="room-code-display">
+        <div class="room-code-label">KODE ROOM — Bagikan ke Siswa</div>
+        <div class="room-code" id="roomCodeDisplay">----</div>
+      </div>
+
+      <div style="text-align:center;margin:12px 0;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;letter-spacing:1px;">QR CODE — Scan untuk Bergabung</div>
+        <div style="background:white;display:inline-block;padding:12px;border-radius:12px;">
+          <div id="qrCode"></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px;word-break:break-word;" id="qrUrlHint"></div>
+        <div id="qrLinkContainer" style="display:none;margin-top:12px;">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:6px;letter-spacing:1px;">URL langsung untuk siswa:</div>
+          <div style="background:rgba(255,255,255,0.08);border:1px solid rgba(0,212,255,0.18);padding:10px;border-radius:10px;word-break:break-word;">
+            <a id="qrLink" href="#" target="_blank" style="color:var(--accent);font-size:13px;word-break:break-word;"></a>
+          </div>
+          <button class="btn btn-secondary" style="margin-top:10px;" onclick="copyJoinLink()">SALIN LINK</button>
+        </div>
+      </div>
+
+      <div class="team-setup">
+        <div class="team-input-group">
+          <label>🔵 Tim A</label>
+          <input type="text" id="nameA" value="Tim Alpha" placeholder="Nama Tim A">
+        </div>
+        <div class="team-input-group">
+          <label>🟠 Tim B</label>
+          <input type="text" id="nameB" value="Tim Beta" placeholder="Nama Tim B">
+        </div>
+        <div class="team-input-group">
+          <label>🟢 Tim C</label>
+          <input type="text" id="nameC" value="Tim Gamma" placeholder="Nama Tim C">
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div style="font-family:'Orbitron',monospace;font-size:11px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;">👥 Siswa Bergabung (<span id="playerCountLobby">0</span>)</div>
+      <div class="players-grid" id="playersGrid">
+        <div class="waiting-hint">Menunggu siswa bergabung...</div>
+      </div>
+    </div>
+
+    <div class="host-controls">
+      <button class="btn btn-secondary" onclick="selectRole('role')">← Kembali</button>
+      <button class="btn btn-primary" onclick="hostStartGame()" id="startGameBtn">⚡ MULAI KUIS</button>
+    </div>
+  </div>
+
+  <!-- ============ PLAYER JOIN ============ -->
+  <div class="screen" id="playerJoinScreen">
+    <div class="header">
+      <div class="header-badge">Mode Siswa · Player</div>
+      <h1>GABUNG KUIS</h1>
+    </div>
+    <div class="join-screen">
+      <div class="join-input-group">
+        <label>Nama Kamu</label>
+        <input class="join-input" type="text" id="playerName" placeholder="Nama kamu..." maxlength="20">
+      </div>
+      <div class="join-input-group">
+        <label>Kode Room (dari Guru)</label>
+        <input class="join-input room-code-input" type="text" id="roomCodeInput" placeholder="XXXX" maxlength="4" oninput="this.value=this.value.toUpperCase()">
+      </div>
+      <div class="join-input-group">
+        <label>Pilih Tim</label>
+        <div class="team-select-btns">
+          <button class="team-select-btn tsb-a" onclick="selectTeam('A')">🔵 Tim A</button>
+          <button class="team-select-btn tsb-b" onclick="selectTeam('B')">🟠 Tim B</button>
+          <button class="team-select-btn tsb-c" onclick="selectTeam('C')">🟢 Tim C</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <button class="btn btn-secondary" onclick="selectRole('role')">← Kembali</button>
+        <button class="btn btn-primary" onclick="playerJoin()">🚀 GABUNG</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PLAYER WAITING ============ -->
+  <div class="screen" id="playerWaitingScreen">
+    <div class="header">
+      <div class="header-badge">Menunggu Guru Mulai</div>
+      <h1>SIAP!</h1>
+    </div>
+    <div class="player-waiting-screen">
+      <span class="pulse-icon">⏳</span>
+      <div style="font-family:'Orbitron',monospace;font-size:16px;color:var(--accent);margin-bottom:8px;" id="waitingPlayerName"></div>
+      <div id="waitingTeamBadge"></div>
+      <p style="color:var(--muted);font-size:14px;margin:16px 0;">Menunggu guru memulai kuis...</p>
+      <div class="panel" style="text-align:left;">
+        <div style="font-family:'Orbitron',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;">SISWA BERGABUNG</div>
+        <div class="players-grid" id="waitingPlayersGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ GAME SCREEN (HOST) ============ -->
+  <div class="screen" id="hostGameScreen">
+    <div class="header" style="padding:10px 0;">
+      <div class="header-badge">Cerdas Cermat · Sedang Berlangsung</div>
+      <h1 style="font-size:clamp(18px,4vw,36px);">INFORMATIKA</h1>
+    </div>
+
+    <div class="scorebar">
+      <div class="score-card team-a">
+        <div class="score-label" id="hostLabelA">Tim A</div>
+        <div class="score-value" id="hostScoreA">0</div>
+      </div>
+      <div class="score-card team-b">
+        <div class="score-label" id="hostLabelB">Tim B</div>
+        <div class="score-value" id="hostScoreB">0</div>
+      </div>
+      <div class="score-card team-c">
+        <div class="score-label" id="hostLabelC">Tim C</div>
+        <div class="score-value" id="hostScoreC">0</div>
+      </div>
+      <div class="score-card timer-card">
+        <div class="score-label">⏱ WAKTU</div>
+        <div class="timer-value" id="timerDisplay">15</div>
+      </div>
+    </div>
+
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    </div>
+
+    <div class="question-panel" id="questionPanel">
+      <div class="q-meta">
+        <span class="q-number" id="qNumber">SOAL 1 / 15</span>
+        <span class="q-category" id="qCategory">Hardware</span>
+        <span class="q-points">+100 / -50 pts</span>
+      </div>
+      <div class="q-text" id="qText">Memuat soal...</div>
+      <div class="answers" id="answersGrid"></div>
+      <div class="reveal-panel" id="revealPanel"></div>
+    </div>
+
+    <!-- Buzzed indicator -->
+    <div class="buzzed-indicator" id="buzzedIndicator">
+      <div style="font-size:12px;color:var(--muted);letter-spacing:2px;margin-bottom:4px;">🔔 BUZZER DITEKAN</div>
+      <div class="buzzed-team-name" id="buzzedTeamDisplay"></div>
+      <div class="buzzed-player-name" id="buzzedPlayerDisplay"></div>
+    </div>
+
+    <!-- Online players -->
+    <div style="margin:8px 0;">
+      <div style="font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;">📱 Siswa Online</div>
+      <div class="live-players" id="livePlayers"></div>
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-secondary" onclick="hostSkipQuestion()">⏭ Lewati</button>
+      <button class="btn btn-primary" onclick="hostNextQuestion()" id="nextBtn" style="display:none">Berikutnya ▸</button>
+      <button class="btn btn-danger" onclick="hostEndGame()">🏁 Selesai</button>
+    </div>
+  </div>
+
+  <!-- ============ PLAYER BUZZER SCREEN ============ -->
+  <div class="screen" id="playerGameScreen">
+    <div class="header" style="padding:8px 0 4px;">
+      <h1 style="font-size:clamp(18px,4vw,30px);">CERDAS CERMAT</h1>
+    </div>
+
+    <div class="status-bar" id="playerStatusBar">
+      <div class="status-dot green" id="statusDot"></div>
+      <span id="statusText">Terhubung</span>
+    </div>
+
+    <div class="mini-scoreboard" id="miniScoreboard">
+      <div class="mini-score my-team" id="miniA"><div class="mini-score-label" id="miniLabelA">Tim A</div><div class="mini-score-val" id="miniScoreA">0</div></div>
+      <div class="mini-score" id="miniB"><div class="mini-score-label" id="miniLabelB">Tim B</div><div class="mini-score-val" id="miniScoreB">0</div></div>
+      <div class="mini-score" id="miniC"><div class="mini-score-label" id="miniLabelC">Tim C</div><div class="mini-score-val" id="miniScoreC">0</div></div>
+      <div class="mini-score"><div class="mini-score-label">⏱</div><div class="mini-score-val" id="miniTimer">15</div></div>
+    </div>
+
+    <div class="question-panel" style="padding:16px;" id="playerQPanel">
+      <div class="q-meta">
+        <span class="q-number" id="playerQNumber">SOAL 1</span>
+        <span class="q-category" id="playerQCat"></span>
+      </div>
+      <div class="q-text-player" id="playerQText">Menunggu soal...</div>
+
+      <!-- Buzzer mode -->
+      <div id="buzzerMode">
+        <div id="bigBuzzerWrap" style="text-align:center;">
+          <div class="big-buzzer" id="bigBuzzer" onclick="playerBuzz()">
+            <span class="buzzer-icon">🔔</span>
+            <span>BUZZER!</span>
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--muted);text-align:center;margin-top:8px;" id="buzzerHint">Tekan buzzer secepat mungkin!</div>
+      </div>
+
+      <!-- Answer mode (shown after buzz) -->
+      <div id="answerMode" style="display:none;">
+        <div style="font-family:'Orbitron',monospace;font-size:11px;color:var(--gold);letter-spacing:2px;margin-bottom:10px;text-align:center;">⚡ KAMU DAPAT MENJAWAB!</div>
+        <div class="player-answers" id="playerAnswersGrid"></div>
+      </div>
+
+      <!-- Result mode -->
+      <div id="resultMode" style="display:none;text-align:center;padding:16px 0;">
+        <div style="font-size:40px;" id="resultEmoji">✅</div>
+        <div style="font-family:'Orbitron',monospace;font-size:16px;margin-top:8px;" id="resultText">Benar!</div>
+      </div>
+    </div>
+
+    <div class="my-score-display">
+      <div>
+        <div class="my-score-label">Skor kamu</div>
+        <div style="font-size:12px;color:var(--muted);" id="myPlayerName"></div>
+      </div>
+      <div class="my-score-num" id="myScoreDisplay">0</div>
+    </div>
+  </div>
+
+  <!-- ============ RESULT SCREEN ============ -->
+  <div class="screen" id="resultScreen">
+    <div class="result-screen">
+      <span class="trophy">🏆</span>
+      <p style="font-family:'Orbitron',monospace;font-size:11px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;margin-bottom:6px;">PEMENANG</p>
+      <div class="winner-name" id="winnerName"></div>
+      <p style="color:var(--muted);margin-bottom:8px;">Selamat! Tim terbaik Informatika hari ini 🎉</p>
+      <div class="final-scores" id="finalScores"></div>
+      <div class="panel" style="text-align:left;">
+        <div style="font-family:'Orbitron',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;text-transform:uppercase;">📊 Statistik</div>
+        <div id="statsBox" style="font-size:14px;color:var(--muted);line-height:2;"></div>
+      </div>
+      <button class="btn btn-primary" style="margin:16px auto;display:block;" onclick="resetAll()">🔄 Main Lagi</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ==================== QUESTIONS ====================
+const questions = [
+  { q: "Apa kepanjangan dari CPU?", opts: ["Central Processing Unit","Computer Processing Unit","Central Program Unit","Core Processing Utility"], ans: 0, cat: "Hardware" },
+  { q: "Perangkat penyimpanan yang menggunakan teknologi flash memory dan tidak memiliki bagian yang bergerak adalah...", opts: ["HDD","DVD-ROM","SSD","Floppy Disk"], ans: 2, cat: "Hardware" },
+  { q: "Dalam sistem bilangan biner, berapakah nilai desimal dari 1011?", opts: ["9","10","11","13"], ans: 2, cat: "Sistem Bilangan" },
+  { q: "Protokol yang digunakan untuk mengirim email adalah...", opts: ["HTTP","FTP","SMTP","DNS"], ans: 2, cat: "Jaringan" },
+  { q: "Apa yang dimaksud dengan RAM?", opts: ["Penyimpanan permanen data","Memori kerja sementara yang hilang saat mati","Prosesor grafis","Perangkat input"], ans: 1, cat: "Hardware" },
+  { q: "Bahasa pemrograman yang digunakan untuk membuat tampilan halaman web adalah...", opts: ["Python","Java","HTML","C++"], ans: 2, cat: "Pemrograman" },
+  { q: "Manakah yang merupakan contoh perangkat OUTPUT?", opts: ["Keyboard","Scanner","Mouse","Monitor"], ans: 3, cat: "Hardware" },
+  { q: "Sistem operasi yang dikembangkan oleh Microsoft adalah...", opts: ["macOS","Linux","Windows","Android"], ans: 2, cat: "Sistem Operasi" },
+  { q: "Berapa bit yang terdapat dalam 1 byte?", opts: ["4 bit","8 bit","16 bit","32 bit"], ans: 1, cat: "Sistem Bilangan" },
+  { q: "Apa fungsi dari DNS (Domain Name System)?", opts: ["Mengamankan jaringan","Menerjemahkan nama domain ke alamat IP","Mengatur bandwidth","Menghubungkan perangkat ke WiFi"], ans: 1, cat: "Jaringan" },
+  { q: "Algoritma yang mengurutkan data dengan membandingkan elemen berdekatan disebut...", opts: ["Quick Sort","Merge Sort","Bubble Sort","Binary Search"], ans: 2, cat: "Algoritma" },
+  { q: "Apa kepanjangan dari URL?", opts: ["Universal Resource Locator","Uniform Resource Locator","Unified Record Link","Universal Record Link"], ans: 1, cat: "Internet" },
+  { q: "Kabel yang digunakan untuk menghubungkan komputer dalam jaringan LAN adalah...", opts: ["Kabel Koaksial","Kabel UTP","Kabel Fiber Optik","Kabel HDMI"], ans: 1, cat: "Jaringan" },
+  { q: "Dalam pemrograman, struktur yang digunakan untuk mengulang perintah disebut...", opts: ["Variabel","Fungsi","Looping / Perulangan","Array"], ans: 2, cat: "Pemrograman" },
+  { q: "Konversi hexadecimal FF ke desimal adalah...", opts: ["245","250","255","260"], ans: 2, cat: "Sistem Bilangan" }
+];
+
+// ==================== STATE ====================
+let role = null; // 'host' | 'player'
+let roomCode = null;
+let myPlayerId = null;
+let myPlayerName_val = '';
+let myTeam = null;
+let selectedTeam = null;
+
+// Host state
+let scores = { A: 0, B: 0, C: 0 };
+let teamNames = { A: 'Tim Alpha', B: 'Tim Beta', C: 'Tim Gamma' };
+let currentQ = 0;
+let timer = null;
+let timeLeft = 15;
+let buzzedTeam = null;
+let buzzedPlayer = null;
+let answered = false;
+let totalAnswered = 0;
+let totalCorrect = 0;
+let gameStartTime = null;
+let players = {}; // id -> {name, team, score}
+let buzzLockout = false;
+
+// Player state
+let myScore = 0;
+let canBuzz = false;
+let canAnswer = false;
+let currentQIndex = 0;
+let currentQData = null;
+let alreadyBuzzed = false;
+
+// ==================== REALTIME via Socket.io ====================
+let socket = null;
+
+function connectSocket(roleType) {
+  if (socket) { socket.disconnect(); socket = null; }
+  socket = io();
+
+  socket.on('connect', () => {
+    console.log('Connected to server with ID:', socket.id);
+    showNotif('Terhubung ke server multiplayer', 'correct');
+    if (roleType === 'host') {
+      socket.emit('hostInit', { roomCode, playerId: myPlayerId, name: myPlayerName_val, team: myTeam });
+      console.log('Host init sent:', { roomCode, playerId: myPlayerId, name: myPlayerName_val, team: myTeam });
+    } else if (roleType === 'player') {
+      socket.emit('playerInit', { roomCode, playerId: myPlayerId, name: myPlayerName_val, team: myTeam });
+      console.log('Player init sent:', { roomCode, playerId: myPlayerId, name: myPlayerName_val, team: myTeam });
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Disconnected from server');
+    showNotif('Koneksi server multiplayer terputus.', 'wrong');
+  });
+
+  socket.on('connect_error', (error) => {
+    console.error('Connection error:', error);
+    showNotif('Gagal terhubung ke server multiplayer.', 'wrong');
+  });
+
+  socket.onAny((event, data) => {
+    console.log('Received event:', event, data);
+    handleMessage(data);
+  });
+}
+
+function sendSocket(msg) {
+  if (socket && socket.connected) {
+    socket.emit(msg.type, msg);
+  } else {
+    console.warn('Socket tidak siap:', msg);
+  }
+}
+
+function broadcast(msg) {
+  sendSocket(msg);
+}
+
+function saveRoomState() {
+  if (!roomCode) return;
+  const state = {
+    type: 'fullState',
+    scores, teamNames, players, currentQ,
+    buzzedTeam, buzzedPlayer, answered, timeLeft,
+    gamePhase: getCurrentPhase(),
+    currentQData: questions[currentQ] || null,
+    _ts: Date.now()
+  };
+  try { localStorage.setItem('cc_room_' + roomCode, JSON.stringify(state)); } catch(e) {}
+}
+
+function getCurrentPhase() {
+  const screens = ['hostSetupScreen','hostGameScreen','resultScreen'];
+  for (const s of screens) {
+    if (document.getElementById(s).classList.contains('active')) return s;
+  }
+  return 'lobby';
+}
+
+function loadRoomState() {
+  if (!roomCode) return null;
+  try {
+    const raw = localStorage.getItem('cc_room_' + roomCode);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+}
+
+function getCurrentPhase() {
+  const screens = ['hostSetupScreen','hostGameScreen','resultScreen'];
+  for (const s of screens) {
+    if (document.getElementById(s).classList.contains('active')) return s;
+  }
+  return 'lobby';
+}
+
+// ==================== MESSAGE HANDLER ====================
+function handleMessage(msg) {
+  if (!msg || msg.roomCode !== roomCode) return;
+
+  if (role === 'host') {
+    handleHostMessage(msg);
+  } else if (role === 'player') {
+    handlePlayerMessage(msg);
+  }
+}
+
+
+function handleHostMessage(msg) {
+  switch(msg.type) {
+    case 'playerJoin':
+      players[msg.playerId] = { name: msg.name, team: msg.team, score: 0 };
+      updateLobbyPlayers();
+      saveRoomState();
+      // Send current state back to new player
+      setTimeout(() => {
+        broadcast({ type: 'roomInfo', roomCode, teamNames, gamePhase: getCurrentPhase(), players, scores });
+        if (document.getElementById('hostGameScreen').classList.contains('active')) {
+          const q = questions[currentQ];
+          broadcast({ type: 'question', roomCode, q: q.q, opts: q.opts, cat: q.cat, qIndex: currentQ, total: questions.length, scores, teamNames, buzzedTeam, buzzedPlayer, answered, correctAns: answered ? q.ans : -1 });
+        }
+      }, 200);
+      showNotif(`📱 ${msg.name} (Tim ${msg.team}) bergabung!`, '');
+      break;
+
+    case 'buzz':
+      if (buzzLockout || buzzedTeam || answered) return;
+      buzzLockout = true;
+      buzzedTeam = msg.team;
+      buzzedPlayer = msg.playerName;
+      clearInterval(timer);
+
+      // Show buzzed indicator
+      const colors = { A: 'var(--accent)', B: 'var(--accent2)', C: 'var(--accent3)' };
+      document.getElementById('buzzedTeamDisplay').textContent = `🔔 ${teamNames[msg.team]}`;
+      document.getElementById('buzzedTeamDisplay').style.color = colors[msg.team];
+      document.getElementById('buzzedPlayerDisplay').textContent = msg.playerName;
+      document.getElementById('buzzedIndicator').classList.add('show');
+
+      // Enable answers on HOST side
+      enableAnswers();
+      showNotif(`🔔 ${msg.playerName} (${teamNames[msg.team]}) BUZZER!`, 'accent');
+
+      // Show buzz toast
+      showBuzzToast(teamNames[msg.team], msg.playerName);
+
+      // Update live players
+      updateLivePlayersDisplay(msg.playerId);
+
+      // Broadcast to all players
+      broadcast({ type: 'buzzed', roomCode, team: msg.team, playerName: msg.playerName, playerId: msg.playerId });
+
+      // Give 10 sec to answer
+      timeLeft = 10;
+      updateTimerDisplay();
+      timer = setInterval(() => {
+        timeLeft--;
+        updateTimerDisplay();
+        broadcast({ type: 'timerTick', roomCode, timeLeft });
+        if (timeLeft <= 0) {
+          clearInterval(timer);
+          scores[buzzedTeam] -= 50;
+          players[msg.playerId] && (players[msg.playerId].score -= 50);
+          showNotif(`❌ ${teamNames[buzzedTeam]} tidak menjawab! -50 poin`, 'wrong');
+          showReveal();
+          disableAnswers();
+          document.getElementById('nextBtn').style.display = 'block';
+          totalAnswered++;
+          updateScoreDisplay();
+          broadcast({ type: 'noAnswer', roomCode, team: buzzedTeam, scores, playerScores: getPlayerScores() });
+          saveRoomState();
+          buzzLockout = false;
+        }
+      }, 1000);
+      break;
+
+    case 'answer':
+      if (answered || !buzzedTeam) return;
+      if (msg.playerId !== getPlayerIdByTeam(buzzedTeam) && msg.team !== buzzedTeam) return;
+      hostCheckAnswer(msg.answerIdx, msg.playerId);
+      break;
+  }
+}
+
+function getPlayerIdByTeam(team) {
+  // Find first player in that team who buzzed
+  return Object.entries(players).find(([id, p]) => p.team === team)?.[0];
+}
+
+function getPlayerScores() {
+  const ps = {};
+  Object.entries(players).forEach(([id, p]) => { ps[id] = p.score; });
+  return ps;
+}
+
+function handlePlayerMessage(msg) {
+  switch(msg.type) {
+    case 'roomInfo':
+      teamNames = msg.teamNames || teamNames;
+      players = msg.players || players;
+      updateWaitingPlayers();
+      updateMiniLabels();
+      if (msg.gamePhase === 'hostGameScreen') {
+        showScreen('playerGameScreen');
+        // Will get question from next broadcast
+      }
+      break;
+
+    case 'gameStart':
+      teamNames = msg.teamNames;
+      scores = { A: 0, B: 0, C: 0 };
+      showScreen('playerGameScreen');
+      updateMiniLabels();
+      updateMiniScores();
+      showNotif('🚀 Kuis Dimulai!', '');
+      break;
+
+    case 'question':
+      currentQIndex = msg.qIndex;
+      currentQData = { q: msg.q, opts: msg.opts, cat: msg.cat };
+      scores = msg.scores || scores;
+      teamNames = msg.teamNames || teamNames;
+      canBuzz = true;
+      canAnswer = false;
+      alreadyBuzzed = false;
+      renderPlayerQuestion();
+      updateMiniScores();
+      updateMiniLabels();
+      if (msg.answered && msg.correctAns >= 0) {
+        showPlayerResult(msg.correctAns, -1, false);
+      }
+      break;
+
+    case 'buzzed':
+      // Another player buzzed
+      if (msg.playerId !== myPlayerId) {
+        canBuzz = false;
+        showBuzzerDisabled(`${msg.playerName} (${teamNames[msg.team] || 'Tim '+msg.team}) buzzer!`);
+      } else {
+        // I buzzed — show answer options
+        canBuzz = false;
+        canAnswer = true;
+        showAnswerMode();
+      }
+      break;
+
+    case 'timerTick':
+      timeLeft = msg.timeLeft;
+      const el = document.getElementById('miniTimer');
+      if (el) el.textContent = msg.timeLeft;
+      break;
+
+    case 'answerResult':
+      scores = msg.scores;
+      updateMiniScores();
+      if (msg.answeredBy === myPlayerId) {
+        myScore = players[myPlayerId] ? players[myPlayerId].score : myScore + (msg.correct ? 100 : -50);
+        document.getElementById('myScoreDisplay').textContent = myScore;
+      }
+      showPlayerResult(msg.correctAns, msg.answerIdx, msg.correct);
+      canBuzz = false;
+      canAnswer = false;
+      break;
+
+    case 'noAnswer':
+      scores = msg.scores;
+      updateMiniScores();
+      if (msg.playerScores && msg.playerScores[myPlayerId] !== undefined) {
+        myScore = msg.playerScores[myPlayerId];
+        document.getElementById('myScoreDisplay').textContent = myScore;
+      }
+      showPlayerNoAnswer();
+      break;
+
+    case 'skipQuestion':
+      canBuzz = false;
+      canAnswer = false;
+      showPlayerSkipped();
+      break;
+
+    case 'gameEnd':
+      scores = msg.scores;
+      teamNames = msg.teamNames;
+      showResultScreen(msg);
+      break;
+
+    case 'playerJoin':
+      players[msg.playerId] = { name: msg.name, team: msg.team, score: 0 };
+      updateWaitingPlayers();
+      break;
+  }
+}
+
+// ==================== ROLE SELECT ====================
+function selectRole(r) {
+  if (r === 'role') { showScreen('roleScreen'); return; }
+  role = r;
+  if (r === 'host') {
+    roomCode = generateRoomCode();
+    myPlayerId = 'host_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    myPlayerName_val = 'Host';
+    myTeam = null;
+    connectSocket('host');
+    showScreen('hostSetupScreen');
+    document.getElementById('roomCodeDisplay').textContent = roomCode;
+    generateQR();
+    updateLobbyPlayers();
+    saveRoomState();
+  } else {
+    showScreen('playerJoinScreen');
+    // Check URL params for auto-fill
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('room')) {
+      document.getElementById('roomCodeInput').value = params.get('room').toUpperCase();
+    }
+  }
+}
+
+function generateRoomCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+function getJoinUrl() {
+  const path = window.location.pathname;
+  if (window.location.protocol === 'file:') {
+    return `ROOM=${roomCode}`;
+  }
+  const base = `${window.location.origin}${path}`;
+  const separator = base.includes('?') ? '&' : '?';
+  return `${base}${separator}room=${encodeURIComponent(roomCode)}`;
+}
+
+function generateQR() {
+  const payload = getJoinUrl();
+  const isLocalFile = window.location.protocol === 'file:';
+  const linkEl = document.getElementById('qrLink');
+  const linkContainer = document.getElementById('qrLinkContainer');
+
+  if (isLocalFile) {
+    document.getElementById('qrUrlHint').textContent = `Kode room: ${roomCode} — scan QR hanya menampilkan teks ROOM=${roomCode}. Untuk join HP, jalankan halaman lewat server atau masukkan kode manual.`;
+    if (linkContainer) linkContainer.style.display = 'none';
+  } else {
+    document.getElementById('qrUrlHint').textContent = 'Bagikan link ini kepada siswa atau scan QR untuk membuka langsung:';
+    if (linkEl) {
+      linkEl.href = payload;
+      linkEl.textContent = payload;
+    }
+    if (linkContainer) linkContainer.style.display = 'block';
+  }
+
+  document.getElementById('qrCode').innerHTML = '';
+  try {
+    new QRCode(document.getElementById('qrCode'), {
+      text: payload, width: 180, height: 180,
+      colorDark: '#000000', colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.H
+    });
+  } catch(e) {
+    document.getElementById('qrCode').innerHTML = `<div style="font-family:monospace;font-size:11px;color:#333;padding:8px;">${payload}</div>`;
+  }
+}
+
+function copyJoinLink() {
+  const linkEl = document.getElementById('qrLink');
+  if (!linkEl || !linkEl.href || linkEl.href === '#') {
+    showNotif('Tidak ada link untuk disalin.', 'wrong');
+    return;
+  }
+  navigator.clipboard?.writeText(linkEl.href)
+    .then(() => showNotif('Link berhasil disalin ke clipboard.', 'correct'))
+    .catch(() => showNotif('Gagal menyalin link.', 'wrong'));
+}
+
+// ==================== TEAM SELECT (PLAYER) ====================
+function selectTeam(t) {
+  selectedTeam = t;
+  document.querySelectorAll('.team-select-btn').forEach(b => b.classList.remove('selected'));
+  document.querySelector('.tsb-' + t.toLowerCase()).classList.add('selected');
+}
+
+// ==================== PLAYER JOIN ====================
+function playerJoin() {
+  const name = document.getElementById('playerName').value.trim();
+  const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+  if (!name) { showNotif('⚠️ Masukkan namamu!', 'wrong'); return; }
+  if (!code || code.length < 4) { showNotif('⚠️ Masukkan kode room (4 huruf)!', 'wrong'); return; }
+  if (!selectedTeam) { showNotif('⚠️ Pilih timmu dulu!', 'wrong'); return; }
+
+  roomCode = code;
+  myPlayerId = 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+  myPlayerName_val = name;
+  myTeam = selectedTeam;
+  myScore = 0;
+
+  connectSocket('player');
+  players[myPlayerId] = { name, team: selectedTeam, score: 0 };
+
+  // Show waiting screen
+  document.getElementById('waitingPlayerName').textContent = name;
+  const colors = { A: 'var(--accent)', B: 'var(--accent2)', C: 'var(--accent3)' };
+  document.getElementById('waitingTeamBadge').innerHTML = `
+    <div class="my-team-badge team-${selectedTeam.toLowerCase()}" style="border-color:${colors[selectedTeam]};color:${colors[selectedTeam]}">
+      ${selectedTeam === 'A' ? '🔵' : selectedTeam === 'B' ? '🟠' : '🟢'} Tim ${selectedTeam}
+    </div>`;
+
+  showScreen('playerWaitingScreen');
+
+  // Set up player game screen
+  document.getElementById('myPlayerName').textContent = name;
+  const bigBuzzer = document.getElementById('bigBuzzer');
+  bigBuzzer.className = 'big-buzzer team-' + selectedTeam.toLowerCase();
+
+  // Broadcast join
+  setTimeout(() => {
+    broadcast({ type: 'playerJoin', roomCode, playerId: myPlayerId, name, team: selectedTeam });
+  }, 100);
+
+  // Check if game already started
+  const state = loadRoomState();
+  if (state) {
+    teamNames = state.teamNames || teamNames;
+    players = { ...players, ...(state.players || {}) };
+    players[myPlayerId] = { name, team: selectedTeam, score: 0 };
+    updateMiniLabels();
+    if (state.gamePhase === 'hostGameScreen') {
+      showScreen('playerGameScreen');
+    }
+  }
+
+  updateWaitingPlayers();
+  showNotif(`✅ Bergabung ke room ${code}`, '');
+}
+
+// ==================== HOST LOBBY ====================
+function updateLobbyPlayers() {
+  const grid = document.getElementById('playersGrid');
+  const count = Object.keys(players).length;
+  document.getElementById('playerCountLobby').textContent = count;
+
+  if (count === 0) {
+    grid.innerHTML = '<div class="waiting-hint">Menunggu siswa bergabung...</div>';
+    return;
+  }
+
+  const colors = { A: 'var(--accent)', B: 'var(--accent2)', C: 'var(--accent3)' };
+  grid.innerHTML = Object.entries(players).map(([id, p]) => `
+    <div class="player-chip ready">
+      <div class="player-dot"></div>
+      <div class="player-name-text">${p.name}</div>
+      <div class="player-team-badge" style="background:${colors[p.team]}22;color:${colors[p.team]};border:1px solid ${colors[p.team]}44">
+        Tim ${p.team}
+      </div>
+    </div>
+  `).join('');
+}
+
+function updateWaitingPlayers() {
+  const grid = document.getElementById('waitingPlayersGrid');
+  if (!grid) return;
+  const colors = { A: 'var(--accent)', B: 'var(--accent2)', C: 'var(--accent3)' };
+  const allPlayers = Object.entries(players);
+  if (allPlayers.length === 0) {
+    grid.innerHTML = '<div class="waiting-hint" style="font-size:13px;color:var(--muted);">Belum ada siswa lain</div>';
+    return;
+  }
+  grid.innerHTML = allPlayers.map(([id, p]) => `
+    <div class="player-chip ${id === myPlayerId ? 'ready' : ''}">
+      <div class="player-dot"></div>
+      <div class="player-name-text">${p.name}${id === myPlayerId ? ' (Kamu)' : ''}</div>
+      <div class="player-team-badge" style="background:${colors[p.team]}22;color:${colors[p.team]}">Tim ${p.team}</div>
+    </div>
+  `).join('');
+}
+
+// ==================== HOST START GAME ====================
+function hostStartGame() {
+  teamNames.A = document.getElementById('nameA').value || 'Tim Alpha';
+  teamNames.B = document.getElementById('nameB').value || 'Tim Beta';
+  teamNames.C = document.getElementById('nameC').value || 'Tim Gamma';
+
+  scores = { A: 0, B: 0, C: 0 };
+  currentQ = 0; totalAnswered = 0; totalCorrect = 0;
+  gameStartTime = new Date();
+
+  document.getElementById('hostLabelA').textContent = teamNames.A;
+  document.getElementById('hostLabelB').textContent = teamNames.B;
+  document.getElementById('hostLabelC').textContent = teamNames.C;
+
+  showScreen('hostGameScreen');
+  broadcast({ type: 'gameStart', roomCode, teamNames });
+  saveRoomState();
+  hostLoadQuestion();
+}
+
+// ==================== HOST LOAD QUESTION ====================
+function hostLoadQuestion() {
+  if (currentQ >= questions.length) { hostEndGame(); return; }
+  const q = questions[currentQ];
+  buzzedTeam = null; buzzedPlayer = null; answered = false; buzzLockout = false;
+
+  document.getElementById('qNumber').textContent = `SOAL ${currentQ+1} / ${questions.length}`;
+  document.getElementById('qCategory').textContent = q.cat;
+  document.getElementById('qText').textContent = q.q;
+  document.getElementById('revealPanel').classList.remove('show');
+  document.getElementById('nextBtn').style.display = 'none';
+  document.getElementById('buzzedIndicator').classList.remove('show');
+  document.getElementById('progressFill').style.width = `${(currentQ/questions.length)*100}%`;
+
+  updateScoreDisplay();
+  updateLivePlayersDisplay(null);
+
+  const grid = document.getElementById('answersGrid');
+  grid.innerHTML = '';
+  const letters = ['A','B','C','D'];
+  q.opts.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'ans-btn';
+    btn.disabled = true;
+    btn.innerHTML = `<span class="letter">${letters[i]}</span>${opt}`;
+    btn.onclick = () => hostCheckAnswer(i, null);
+    btn.id = `ans${i}`;
+    grid.appendChild(btn);
+  });
+
+  // Broadcast question to players
+  broadcast({
+    type: 'question', roomCode,
+    q: q.q, opts: q.opts, cat: q.cat,
+    qIndex: currentQ, total: questions.length,
+    scores, teamNames, buzzedTeam: null, answered: false, correctAns: -1
+  });
+
+  hostStartTimer();
+  saveRoomState();
+}
+
+function hostStartTimer() {
+  timeLeft = 15;
+  updateTimerDisplay();
+  clearInterval(timer);
+  timer = setInterval(() => {
+    timeLeft--;
+    updateTimerDisplay();
+    broadcast({ type: 'timerTick', roomCode, timeLeft });
+    if (timeLeft <= 0) {
+      clearInterval(timer);
+      hostTimeUp();
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  const el = document.getElementById('timerDisplay');
+  if (el) {
+    el.textContent = timeLeft;
+    el.className = 'timer-value' + (timeLeft <= 5 ? ' urgent' : '');
+  }
+}
+
+function hostTimeUp() {
+  if (answered) return;
+  clearInterval(timer);
+  showReveal();
+  showNotif('⏰ Waktu Habis!', '');
+  disableAnswers();
+  document.getElementById('nextBtn').style.display = 'block';
+  broadcast({ type: 'skipQuestion', roomCode });
+}
+
+function hostCheckAnswer(idx, playerId) {
+  if (answered) return;
+  answered = true;
+  clearInterval(timer);
+  totalAnswered++;
+
+  const q = questions[currentQ];
+  const isCorrect = idx === q.ans;
+
+  disableAnswers();
+  document.getElementById(`ans${idx}`).classList.add(isCorrect ? 'correct' : 'wrong');
+  document.getElementById(`ans${q.ans}`).classList.add('correct');
+  document.getElementById('buzzedIndicator').classList.remove('show');
+
+  if (isCorrect) {
+    scores[buzzedTeam] += 100;
+    if (playerId && players[playerId]) players[playerId].score += 100;
+    totalCorrect++;
+    showNotif(`✅ Benar! ${teamNames[buzzedTeam]} +100 poin`, 'correct');
+  } else {
+    scores[buzzedTeam] -= 50;
+    if (playerId && players[playerId]) players[playerId].score -= 50;
+    showNotif(`❌ Salah! ${teamNames[buzzedTeam]} -50 poin`, 'wrong');
+  }
+
+  updateScoreDisplay();
+  showReveal();
+  document.getElementById('nextBtn').style.display = 'block';
+
+  broadcast({
+    type: 'answerResult', roomCode,
+    answerIdx: idx, correctAns: q.ans, correct: isCorrect,
+    team: buzzedTeam, answeredBy: playerId,
+    scores, playerScores: getPlayerScores()
+  });
+  buzzLockout = false;
+  saveRoomState();
+}
+
+function hostNextQuestion() {
+  currentQ++;
+  document.getElementById('questionPanel').style.animation = 'none';
+  void document.getElementById('questionPanel').offsetWidth;
+  document.getElementById('questionPanel').style.animation = '';
+  hostLoadQuestion();
+}
+
+function hostSkipQuestion() {
+  clearInterval(timer);
+  showReveal();
+  disableAnswers();
+  document.getElementById('nextBtn').style.display = 'block';
+  showNotif('⏭ Soal dilewati', '');
+  broadcast({ type: 'skipQuestion', roomCode });
+}
+
+function hostEndGame() {
+  clearInterval(timer);
+  broadcast({ type: 'gameEnd', roomCode, scores, teamNames, players, totalAnswered, totalCorrect });
+  showResultScreen({ scores, teamNames, totalAnswered, totalCorrect });
+}
+
+// ==================== HOST HELPERS ====================
+function updateScoreDisplay() {
+  document.getElementById('hostScoreA').textContent = scores.A;
+  document.getElementById('hostScoreB').textContent = scores.B;
+  document.getElementById('hostScoreC').textContent = scores.C;
+}
+
+function enableAnswers() {
+  for (let i = 0; i < 4; i++) {
+    const b = document.getElementById(`ans${i}`);
+    if (b) b.disabled = false;
+  }
+}
+
+function disableAnswers() {
+  for (let i = 0; i < 4; i++) {
+    const b = document.getElementById(`ans${i}`);
+    if (b) b.disabled = true;
+  }
+}
+
+function showReveal() {
+  const q = questions[currentQ];
+  const p = document.getElementById('revealPanel');
+  p.textContent = `✅ Jawaban: ${q.opts[q.ans]}`;
+  p.classList.add('show');
+}
+
+function updateLivePlayersDisplay(buzzedId) {
+  const wrap = document.getElementById('livePlayers');
+  if (!wrap) return;
+  const colors = { A: 'var(--accent)', B: 'var(--accent2)', C: 'var(--accent3)' };
+  wrap.innerHTML = Object.entries(players).map(([id, p]) => `
+    <div class="live-player-chip ${id === buzzedId ? 'buzzed' : ''}">
+      <div class="live-dot"></div>
+      <span>${p.name}</span>
+      <span style="font-size:10px;color:${colors[p.team]};font-family:'Orbitron',monospace">Tim ${p.team}</span>
+    </div>
+  `).join('') || '<span style="font-size:12px;color:var(--muted)">Belum ada siswa</span>';
+}
+
+// ==================== PLAYER GAME UI ====================
+function renderPlayerQuestion() {
+  if (!currentQData) return;
+  document.getElementById('playerQNumber').textContent = `SOAL ${currentQIndex+1}`;
+  document.getElementById('playerQCat').textContent = currentQData.cat;
+  document.getElementById('playerQText').textContent = currentQData.q;
+
+  // Show buzzer mode
+  document.getElementById('buzzerMode').style.display = 'block';
+  document.getElementById('answerMode').style.display = 'none';
+  document.getElementById('resultMode').style.display = 'none';
+
+  const buzzer = document.getElementById('bigBuzzer');
+  buzzer.classList.remove('disabled', 'already-buzzed', 'pressed');
+  document.getElementById('buzzerHint').textContent = 'Tekan buzzer secepat mungkin!';
+  document.getElementById('buzzerHint').style.color = 'var(--muted)';
+
+  alreadyBuzzed = false;
+  canBuzz = true;
+}
+
+function playerBuzz() {
+  if (!canBuzz || alreadyBuzzed) return;
+  alreadyBuzzed = true;
+  canBuzz = false;
+
+  const buzzer = document.getElementById('bigBuzzer');
+  buzzer.classList.add('pressed');
+  document.getElementById('buzzerHint').textContent = '⚡ Buzzer ditekan!';
+  document.getElementById('buzzerHint').style.color = 'var(--gold)';
+
+  // Vibrate
+  if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+  broadcast({
+    type: 'buzz', roomCode,
+    playerId: myPlayerId, playerName: myPlayerName_val, team: myTeam
+  });
+
+  // Optimistically show answer mode (host will confirm)
+  setTimeout(() => {
+    if (canAnswer) showAnswerMode();
+  }, 500);
+}
+
+function showAnswerMode() {
+  document.getElementById('buzzerMode').style.display = 'none';
+  document.getElementById('answerMode').style.display = 'block';
+  document.getElementById('resultMode').style.display = 'none';
+
+  const grid = document.getElementById('playerAnswersGrid');
+  grid.innerHTML = '';
+  const letters = ['A','B','C','D'];
+  currentQData.opts.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'player-ans-btn';
+    btn.innerHTML = `<span class="letter">${letters[i]}</span>${opt}`;
+    btn.onclick = () => playerAnswer(i);
+    grid.appendChild(btn);
+  });
+}
+
+function playerAnswer(idx) {
+  if (!canAnswer) return;
+  canAnswer = false;
+  document.querySelectorAll('.player-ans-btn').forEach(b => b.disabled = true);
+
+  if (navigator.vibrate) navigator.vibrate(50);
+
+  broadcast({
+    type: 'answer', roomCode,
+    playerId: myPlayerId, team: myTeam,
+    answerIdx: idx, playerName: myPlayerName_val
+  });
+}
+
+function showPlayerResult(correctAns, myAns, correct) {
+  document.getElementById('buzzerMode').style.display = 'none';
+  document.getElementById('answerMode').style.display = 'none';
+  document.getElementById('resultMode').style.display = 'block';
+
+  if (myAns === -1) {
+    // Not my answer, just show correct
+    document.getElementById('resultEmoji').textContent = '📋';
+    document.getElementById('resultText').textContent = `Jawaban: ${currentQData?.opts[correctAns] || ''}`;
+    document.getElementById('resultText').style.color = 'var(--correct)';
+  } else if (correct) {
+    document.getElementById('resultEmoji').textContent = '✅';
+    document.getElementById('resultText').textContent = 'BENAR! +100 poin';
+    document.getElementById('resultText').style.color = 'var(--correct)';
+    if (navigator.vibrate) navigator.vibrate([100, 100, 100, 100, 100]);
+  } else {
+    document.getElementById('resultEmoji').textContent = '❌';
+    document.getElementById('resultText').textContent = 'SALAH! -50 poin';
+    document.getElementById('resultText').style.color = 'var(--wrong)';
+    if (navigator.vibrate) navigator.vibrate(500);
+  }
+}
+
+function showBuzzerDisabled(msg) {
+  const buzzer = document.getElementById('bigBuzzer');
+  buzzer.classList.add('disabled');
+  document.getElementById('buzzerHint').textContent = msg;
+  document.getElementById('buzzerHint').style.color = 'var(--accent2)';
+}
+
+function showPlayerNoAnswer() {
+  document.getElementById('buzzerMode').style.display = 'none';
+  document.getElementById('answerMode').style.display = 'none';
+  document.getElementById('resultMode').style.display = 'block';
+  document.getElementById('resultEmoji').textContent = '⏰';
+  document.getElementById('resultText').textContent = 'Waktu habis!';
+  document.getElementById('resultText').style.color = 'var(--gold)';
+}
+
+function showPlayerSkipped() {
+  document.getElementById('buzzerMode').style.display = 'none';
+  document.getElementById('answerMode').style.display = 'none';
+  document.getElementById('resultMode').style.display = 'block';
+  document.getElementById('resultEmoji').textContent = '⏭';
+  document.getElementById('resultText').textContent = 'Soal dilewati';
+  document.getElementById('resultText').style.color = 'var(--muted)';
+}
+
+function updateMiniLabels() {
+  document.getElementById('miniLabelA').textContent = teamNames.A || 'Tim A';
+  document.getElementById('miniLabelB').textContent = teamNames.B || 'Tim B';
+  document.getElementById('miniLabelC').textContent = teamNames.C || 'Tim C';
+  // Highlight my team
+  ['A','B','C'].forEach(t => {
+    const el = document.getElementById('mini' + t);
+    if (el) el.className = 'mini-score' + (t === myTeam ? ' my-team' : '');
+  });
+}
+
+function updateMiniScores() {
+  document.getElementById('miniScoreA').textContent = scores.A;
+  document.getElementById('miniScoreB').textContent = scores.B;
+  document.getElementById('miniScoreC').textContent = scores.C;
+}
+
+// ==================== RESULT ====================
+function showResultScreen(data) {
+  const s = data.scores || scores;
+  const tn = data.teamNames || teamNames;
+  const entries = Object.entries(s).sort((a,b) => b[1]-a[1]);
+  const [winTeam] = entries[0];
+  const colors = { A: 'var(--accent)', B: 'var(--accent2)', C: 'var(--accent3)' };
+
+  document.getElementById('winnerName').textContent = tn[winTeam] || ('Tim ' + winTeam);
+
+  const fs = document.getElementById('finalScores');
+  fs.innerHTML = entries.map(([team, score], i) => `
+    <div class="final-score-card ${i===0?'winner':''}">
+      <div class="fs-team" style="color:${colors[team]}">${tn[team]||'Tim '+team}</div>
+      <div class="fs-score" style="color:${colors[team]}">${score}</div>
+      ${i===0?'<div style="color:var(--gold);font-size:18px;margin-top:4px">🏆</div>':''}
+    </div>
+  `).join('');
+
+  if (role === 'host') {
+    const elapsed = Math.round((new Date() - gameStartTime) / 1000);
+    document.getElementById('statsBox').innerHTML = `
+      Soal dijawab: <strong style="color:var(--text)">${data.totalAnswered||totalAnswered} dari ${questions.length}</strong><br>
+      Jawaban benar: <strong style="color:var(--correct)">${data.totalCorrect||totalCorrect}</strong><br>
+      Jumlah siswa: <strong style="color:var(--accent)">${Object.keys(players).length}</strong><br>
+      Durasi: <strong style="color:var(--gold)">${Math.floor(elapsed/60)}m ${elapsed%60}s</strong>
+    `;
+  } else {
+    document.getElementById('statsBox').innerHTML = `
+      Skor kamu: <strong style="color:var(--accent)">${myScore}</strong><br>
+      Tim kamu: <strong style="color:${colors[myTeam]||'var(--text)'}">${tn[myTeam]||'Tim '+myTeam}</strong>
+    `;
+  }
+
+  showScreen('resultScreen');
+}
+
+// ==================== BUZZ TOAST ====================
+function showBuzzToast(teamName, playerName) {
+  const toast = document.getElementById('buzzToast');
+  document.getElementById('buzzToastTeam').textContent = `🔔 ${teamName}`;
+  document.getElementById('buzzToastPlayer').textContent = playerName;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+// ==================== NOTIFICATION ====================
+function showNotif(msg, type) {
+  const el = document.getElementById('notif');
+  el.textContent = msg;
+  el.className = 'notif show' + (type === 'correct' ? ' correct-notif' : type === 'wrong' ? ' wrong-notif' : '');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function resetAll() {
+  if (socket) { socket.disconnect(); socket = null; }
+  role = null; roomCode = null; myPlayerId = null;
+  scores = { A:0, B:0, C:0 };
+  players = {}; currentQ = 0;
+  showScreen('roleScreen');
+}
+
+// ==================== INIT ====================
+// Check URL params
+window.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('room')) {
+    role = 'player';
+    showScreen('playerJoinScreen');
+    document.getElementById('roomCodeInput').value = params.get('room').toUpperCase();
+  }
+});
+</script>
+</body>
+</html>
